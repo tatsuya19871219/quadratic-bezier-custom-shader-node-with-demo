@@ -11,8 +11,13 @@ config_version=5
 [application]
 
 config/name="QuadBezierCustomShaderNode"
+run/main_scene="res://test/test.tscn"
 config/features=PackedStringArray("4.2", "GL Compatibility")
 config/icon="res://icon.svg"
+
+[editor]
+
+movie_writer/movie_file="D:/MyDocuments/QuadBezierCustomShaderNodeWithDemo/movie/leaf_demo.avi"
 
 [rendering]
 

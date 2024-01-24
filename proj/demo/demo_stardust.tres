@@ -1,0 +1,550 @@
+[gd_resource type="VisualShader" load_steps=17 format=3 uid="uid://dpw63wvt6n2k7"]
+
+[ext_resource type="Script" path="res://shader/convert_to_quad_bezier_coord_shader_node.gd" id="1_u41sw"]
+[ext_resource type="Script" path="res://shader/in_quad_bezier_segment.gd" id="2_4ikvg"]
+[ext_resource type="Script" path="res://shader/uv_utils/flipped_quad_uv_shader_node.gd" id="3_l7g0a"]
+[ext_resource type="Script" path="res://shader/bool_utils/within_range_shader_node.gd" id="4_qc6as"]
+
+[sub_resource type="VisualShaderNodeCustom" id="VisualShaderNodeCustom_rgbxt"]
+output_port_for_preview = 0
+default_input_values = [1, Vector2(1, 0), 2, Vector2(1, 1), 3, Vector2(0, 1)]
+initialized = true
+script = ExtResource("1_u41sw")
+
+[sub_resource type="VisualShaderNodeCustom" id="VisualShaderNodeCustom_1n3iv"]
+output_port_for_preview = 0
+default_input_values = [1, 0.1]
+initialized = true
+script = ExtResource("2_4ikvg")
+
+[sub_resource type="VisualShaderNodeVectorDecompose" id="VisualShaderNodeVectorDecompose_7ovge"]
+output_port_for_preview = 1
+default_input_values = [0, Vector2(0, 0)]
+op_type = 0
+
+[sub_resource type="VisualShaderNodeCustom" id="VisualShaderNodeCustom_hjslt"]
+output_port_for_preview = 0
+default_input_values = [1, true]
+initialized = true
+script = ExtResource("3_l7g0a")
+
+[sub_resource type="VisualShaderNodeColorOp" id="VisualShaderNodeColorOp_ljsvb"]
+output_port_for_preview = 0
+operator = 4
+
+[sub_resource type="VisualShaderNodeColorConstant" id="VisualShaderNodeColorConstant_dtxpm"]
+constant = Color(1, 1, 0, 1)
+
+[sub_resource type="VisualShaderNodeCustom" id="VisualShaderNodeCustom_tqhh1"]
+output_port_for_preview = 0
+default_input_values = [1, 0.0, 2, 1.0]
+initialized = true
+script = ExtResource("4_qc6as")
+
+[sub_resource type="VisualShaderNodeSwitch" id="VisualShaderNodeSwitch_j36lg"]
+
+[sub_resource type="VisualShaderNodeExpression" id="VisualShaderNodeExpression_65nuq"]
+size = Vector2(520, 340)
+expression = "// make vertecies
+float loc = offset + amp * sin(TAU * freq * TIME);
+
+p0 = vec2(1.0, loc);
+p1 = vec2(loc, 1.0);"
+
+[sub_resource type="VisualShaderNodeFloatConstant" id="VisualShaderNodeFloatConstant_um377"]
+constant = 0.25
+
+[sub_resource type="VisualShaderNodeFloatConstant" id="VisualShaderNodeFloatConstant_4efjb"]
+constant = 0.25
+
+[sub_resource type="VisualShaderNodeFloatConstant" id="VisualShaderNodeFloatConstant_cyi8y"]
+constant = 1.0
+
+[resource]
+code = "shader_type canvas_item;
+render_mode blend_mix;
+
+
+
+// ConvertToQuadBezierCoord
+///////////////////////////////////
+// Quadratic Bezier Curve Solver //
+///////////////////////////////////
+
+// Ref: https://docs.godotengine.org/en/stable/tutorials/shaders/shader_reference/shading_language.html#flow-control
+const float QBEZIER_SOLVER_EPSILON = 0.0001;
+
+
+vec2 qbezier_curve(float t, vec2 p0, vec2 p1, vec2 p2) {
+	return p1 + (1.0-t)*(1.0-t)*(p0 - p1) + t*t*(p2-p1);
+}
+
+
+vec2 qbezier_curve_tangent(float t, vec2 p0, vec2 p1, vec2 p2) {
+	return -2.0*(1.0-t)*(p0 - p1) + 2.0*t*(p2 - p1); 
+}
+
+
+vec2 qbezier_curve_unit_tangent(float t, vec2 p0, vec2 p1, vec2 p2) {
+	vec2 q = qbezier_curve_tangent(t, p0, p1, p2);
+	return q / length(q);
+}
+
+
+vec2 qbezier_curve_unit_normal(float t, vec2 p0, vec2 p1, vec2 p2) {
+	vec2 q = qbezier_curve_unit_tangent(t, p0, p1, p2);
+	return vec2(q.y, -q.x);
+}
+
+
+float qbezier_calc_displacement(vec2 uv, float t, vec2 p0, vec2 p1, vec2 p2) {
+	return dot(uv - qbezier_curve(t, p0, p1, p2), 
+				qbezier_curve_unit_normal(t, p0, p1, p2));
+}
+
+
+float qbezier_calc_curve_length_integral(float t, float A, float B, float C) {
+	float K = 2.0*A*t + B;
+	float L = t*(A*t+B) + C;
+	float M = pow(B, 2.0) - 4.0*A*C;
+	
+	float I = K*sqrt(L)/A;
+	float J = 0.5 * (M*log(2.0*sqrt(A)*sqrt(L)+K))/pow(A, 1.5);
+	
+	return I - J;
+}
+
+
+float qbezier_calc_curve_length(float t, vec2 p0, vec2 p1, vec2 p2) {
+	
+	float a = pow(length(p2-p1), 2.0);
+	float b = pow(length(p0-p1), 2.0);
+	float c = dot(p2-p1, p0-p1);
+	
+	float A = a + b + 2.0*c;
+	float B = -2.0*(b + c);
+	float C = b;
+	
+	if (abs(A) <= QBEZIER_SOLVER_EPSILON) {
+		
+		if (abs(B) <= QBEZIER_SOLVER_EPSILON) {
+			// \\int_0^t C dt
+			return sqrt(C) * t;
+		}
+
+		// \\int_0^t {Bt + C} dt
+		float It = 2.0 * pow(sqrt(B*t + C), 3.0) / (3.0 * B);
+		float I0 = 2.0 * pow(sqrt(C), 3.0) / (3.0 * B);
+		
+		return It - I0;
+	}
+	
+	// \\int_0^t {At^2 + Bt + C} dt
+	return qbezier_calc_curve_length_integral(t, A, B, C) 
+			- qbezier_calc_curve_length_integral(0.0, A, B, C);
+}
+
+
+float qbezier_calc_curt(float x) { // cubic root
+	return pow(x, 1.0/3.0);
+}
+
+
+void qbezier_get_possible_location_parameters(vec2 uv, vec2 p0, vec2 p1, vec2 p2, out float disc, out float[3] t_arr, out int real_solutions) {
+
+	float a = pow(length(p2-p1), 2.0);
+	float b = pow(length(p0-p1), 2.0);
+	float c = dot(p2-p1, p0-p1);
+	float d = dot(uv-p1, p0-p1);
+	float e = dot(uv-p1, p2-p1);
+	
+	float A = a + b + 2.0*c;
+	float B = -3.0*(b + c);
+	float C = 3.0*b + c - d - e;
+	float D = - b + d;
+	
+	
+	if (abs(A) <= QBEZIER_SOLVER_EPSILON) {
+		
+		if (abs(B) <= QBEZIER_SOLVER_EPSILON) {
+			// Ct + D = 0
+			disc = 0.0;
+			t_arr[0] = -D/C;
+			
+			//if (abs(C) <= QBEZIER_SOLVER_EPSILON) {
+				//t_arr[0] = 0.0; // or undefined
+			//}
+			//else {
+				//t_arr[0] = -D/C;
+			//}
+			
+			real_solutions = 1;
+			return;
+		}
+		else {
+			// Bt^2 + Ct + D = 0
+			disc = pow(C,2.0) - 4.0*B*D;
+			
+			if (abs(disc) <= QBEZIER_SOLVER_EPSILON) {
+				// one real solution
+				t_arr[0] = -C/(2.0*B);
+				
+				real_solutions = 1;
+				return;
+			}
+			
+			if (disc > 0.0) {
+				if (B > 0.0) {
+					t_arr[0] = (-C - sqrt(disc))/(2.0*B);
+					t_arr[1] = (-C + sqrt(disc))/(2.0*B);
+				}
+				else {
+					t_arr[0] = (-C + sqrt(disc))/(2.0*B);
+					t_arr[1] = (-C - sqrt(disc))/(2.0*B);
+				}
+				
+				real_solutions = 2;
+				return;
+			}
+			else {
+				// non real solution
+				real_solutions = 0;
+				return;
+			}
+		}
+	}
+	
+	// At^3 + Bt^2 + Ct + D
+	float Ba = B / A;
+	float Ca = C / A;
+	float Da = D / A;
+	
+	// x^3 + px + q = 0, t = x - Ba/3
+	float p = (-pow(Ba, 2.0) + 3.0*Ca) / 3.0;
+	float q = (2.0*pow(Ba, 3.0) - 9.0*Ba*Ca + 27.0*Da) / 27.0;
+	
+	disc = -1.0*( 4.0 * pow(p, 3.0) + 27.0 * pow(q, 2.0) );
+	
+	if (abs(p) < QBEZIER_SOLVER_EPSILON) {
+		// one real solution
+			
+		if (abs(q) < QBEZIER_SOLVER_EPSILON) {
+			t_arr[0] = - Ba/3.0;
+		}
+		else if (q > 0.0) {
+			t_arr[0] = -qbezier_calc_curt(q) - Ba/3.0;
+		}
+		else {
+			t_arr[0] = qbezier_calc_curt(-q) - Ba/3.0;
+		}
+		
+		//t_arr[0] = 0.0;
+		
+		real_solutions = 1;
+		return;
+	}
+	
+	if (disc <= 0.0) { 
+		// one real solution
+		
+		if (p > 0.0) {
+			
+			float th;
+			
+			//th = 1.0/3.0 * asinh(3.0*q/(2.0*p)*sqrt(3.0/p));
+			
+			float y = 3.0*q/(2.0*p)*sqrt(3.0/p);
+			float ash = sign(y) * acosh(sqrt(1.0 + pow(y,2.0))); 
+			th = 1.0/3.0 * ash;
+			
+			float x = -2.0 * sqrt(p/3.0) * sinh(th);
+			t_arr[0] = x - Ba/3.0;
+		}
+		else { 
+			float th = 1.0/3.0 * acosh(-3.0*abs(q)/(2.0*p)*sqrt(-3.0/p));
+			float x = -2.0 * abs(q)/q*sqrt(-p/3.0) * cosh(th);
+			t_arr[0] = x - Ba/3.0;
+		}
+		
+		//t_arr[0] = 0.0;
+		
+		real_solutions = 1;
+		return;
+	}
+	else { 
+		// three real solutions
+		
+		float w = 3.0*q/(2.0*p)*sqrt(3.0/-p);
+		
+		float th = 1.0/3.0*acos(w);
+		float th_0 = th;
+		float th_1 = th - TAU/3.0;
+		float th_2 = th - 2.0*TAU/3.0;
+		
+		float cos_0 = cos(th_0);
+		float cos_1 = cos(th_1);
+		float cos_2 = cos(th_2);
+		
+		float f = -Ba/3.0;
+		float g = 2.0*sqrt(-p/3.0);
+		
+		if (cos_0 <= min(cos_1, cos_2)) {
+			t_arr[0] = f + g*cos_0;
+			if (cos_1 <= cos_2) {
+				t_arr[1] = f + g*cos_1;
+				t_arr[2] = f + g*cos_2;
+			}
+			else {
+				t_arr[1] = f + g*cos_2;
+				t_arr[2] = f + g*cos_1;
+			}
+		}
+		
+		if (cos_1 <= min(cos_0, cos_2)) {
+			t_arr[0] = f + g*cos_1;
+			if (cos_0 <= cos_2) {
+				t_arr[1] = f + g*cos_0;
+				t_arr[2] = f + g*cos_2;
+			}
+			else {
+				t_arr[1] = f + g*cos_2;
+				t_arr[2] = f + g*cos_0;
+			}
+		}
+		
+		if (cos_2 <= min(cos_0, cos_1)) {
+			t_arr[0] = f + g*cos_2;
+			if (cos_0 <= cos_1) {
+				t_arr[1] = f + g*cos_0;
+				t_arr[2] = f + g*cos_1;
+			}
+			else {
+				t_arr[1] = f + g*cos_1;
+				t_arr[2] = f + g*cos_0;
+			}
+		}
+		
+		//t_0 = -Ba/3.0 + 2.0*sqrt(-p/3.0)*cos(th_0);
+		//t_1 = -Ba/3.0 + 2.0*sqrt(-p/3.0)*cos(th_1);
+		//t_2 = -Ba/3.0 + 2.0*sqrt(-p/3.0)*cos(th_2);
+		
+		real_solutions = 3;
+		return;
+	}
+}
+
+
+vec2 qbezier_get_coord(vec2 uv, vec2 p_init, vec2 p_control, vec2 p_last, 
+						out vec2 raw_coord0, out vec2 raw_coord1, out vec2 raw_coord2,
+						out int real_solutions) {
+	
+	float disc;
+	float t_arr[3];
+	
+	qbezier_get_possible_location_parameters(uv, p_init, p_control, p_last, disc, t_arr, real_solutions);
+	
+	float displacement_arr[3];
+	float minimum_distance = -1.0;
+	int minimum_distance_index = -1;
+	
+	for (int i = 0; i < real_solutions; i++) {
+		displacement_arr[i] = qbezier_calc_displacement(uv, t_arr[i], p_init, p_control, p_last);
+
+		float distance_i = abs(displacement_arr[i]);
+		
+		if (distance_i <= minimum_distance || minimum_distance < 0.0) {
+			if(abs(distance_i - minimum_distance) > QBEZIER_SOLVER_EPSILON) {
+				minimum_distance = distance_i;
+				minimum_distance_index = i;
+			}
+		}
+	}
+	
+	raw_coord0 = vec2(t_arr[0], displacement_arr[0]);
+	raw_coord1 = vec2(t_arr[1], displacement_arr[1]);
+	raw_coord2 = vec2(t_arr[2], displacement_arr[2]);
+	
+	float location = t_arr[minimum_distance_index];
+	float displacement = displacement_arr[minimum_distance_index];
+	
+	return vec2(location, displacement);
+}
+
+
+vec2 qbezier_get_principal_coord(vec2 uv, vec2 p_init, vec2 p_control, vec2 p_last) {
+	
+	vec2 raw_coord0;
+	vec2 raw_coord1;
+	vec2 raw_coord2;
+	int real_solutions;
+	
+	return qbezier_get_coord(uv, p_init, p_control, p_last, 
+						raw_coord0, raw_coord1, raw_coord2, real_solutions);
+	
+}
+
+
+void fragment() {
+	vec2 n_out19p0;
+// FlippedQuadUV:19
+	bool n_in19p1 = true;
+	{
+		
+			vec2 uv2 = UV * vec2(2.0, 2.0);
+			
+			vec2 ij = floor(uv2);
+			vec2 st = fract(uv2);
+			
+			float x = int(ij.x) == 0 ? st.x : 1.0 - st.x;
+			float y = int(ij.y) == 0 ? st.y : 1.0 - st.y;
+			
+			n_out19p0 = n_in19p1 ? vec2(x, y) : vec2(1.0 - x, 1.0 - y);
+			
+	}
+
+
+// FloatConstant:35
+	float n_out35p0 = 1.000000;
+
+
+// FloatConstant:34
+	float n_out34p0 = 0.250000;
+
+
+// FloatConstant:33
+	float n_out33p0 = 0.250000;
+
+
+	vec2 n_out32p0;
+	vec2 n_out32p1;
+// Expression:32
+	n_out32p0 = vec2(0.0, 0.0);
+	n_out32p1 = vec2(0.0, 0.0);
+	{
+		// make vertecies
+		float loc = n_out33p0 + n_out34p0 * sin(TAU * n_out35p0 * TIME);
+		
+		n_out32p0 = vec2(1.0, loc);
+		n_out32p1 = vec2(loc, 1.0);
+	}
+
+
+	vec2 n_out16p0;
+	vec2 n_out16p1;
+	vec2 n_out16p2;
+	float n_out16p3;
+// ConvertToQuadBezierCoord:16
+	vec2 n_in16p2 = vec2(1.00000, 1.00000);
+	{
+		
+			
+			n_out16p0 
+				= qbezier_get_principal_coord(n_out19p0, n_out32p0, n_in16p2, n_out32p1);
+									
+			n_out16p1 = qbezier_curve_unit_normal(n_out16p0.x, n_out32p0, n_in16p2, n_out32p1);
+			n_out16p2 = qbezier_curve(n_out16p0.x, n_out32p0, n_in16p2, n_out32p1);
+			
+			n_out16p3 
+				= qbezier_calc_curve_length(1.0, n_out32p0, n_in16p2, n_out32p1);
+	}
+
+
+// VectorDecompose:18
+	float n_out18p0 = n_out16p0.x;
+	float n_out18p1 = n_out16p0.y;
+
+
+	bool n_out30p0;
+// WithinRange:30
+	float n_in30p1 = 0.00000;
+	float n_in30p2 = 1.00000;
+	{
+		
+			n_out30p0 = (n_out18p0 >= n_in30p1) && (n_out18p0 <= n_in30p2);
+	}
+
+
+	float n_out31p0;
+// Switch:31
+	float n_in31p2 = 0.00000;
+	n_out31p0 = mix(n_in31p2, n_out18p1, float(n_out30p0));
+
+
+// ColorConstant:21
+	vec4 n_out21p0 = vec4(1.000000, 1.000000, 0.000000, 1.000000);
+
+
+	vec3 n_out20p0;
+// ColorOp:20
+	{
+		float base = vec3(n_out31p0).x;
+		float blend = vec3(n_out21p0.xyz).x;
+		if (base < 0.5) {
+			n_out20p0.x = 2.0 * base * blend;
+		} else {
+			n_out20p0.x = 1.0 - 2.0 * (1.0 - blend) * (1.0 - base);
+		}
+	}
+	{
+		float base = vec3(n_out31p0).y;
+		float blend = vec3(n_out21p0.xyz).y;
+		if (base < 0.5) {
+			n_out20p0.y = 2.0 * base * blend;
+		} else {
+			n_out20p0.y = 1.0 - 2.0 * (1.0 - blend) * (1.0 - base);
+		}
+	}
+	{
+		float base = vec3(n_out31p0).z;
+		float blend = vec3(n_out21p0.xyz).z;
+		if (base < 0.5) {
+			n_out20p0.z = 2.0 * base * blend;
+		} else {
+			n_out20p0.z = 1.0 - 2.0 * (1.0 - blend) * (1.0 - base);
+		}
+	}
+
+
+// Output:0
+	COLOR.rgb = n_out20p0;
+
+
+}
+"
+graph_offset = Vector2(123.577, -601.693)
+mode = 1
+flags/light_only = false
+nodes/fragment/0/position = Vector2(3020, 200)
+nodes/fragment/16/node = SubResource("VisualShaderNodeCustom_rgbxt")
+nodes/fragment/16/position = Vector2(1500, -180)
+nodes/fragment/17/node = SubResource("VisualShaderNodeCustom_1n3iv")
+nodes/fragment/17/position = Vector2(2120, -420)
+nodes/fragment/18/node = SubResource("VisualShaderNodeVectorDecompose_7ovge")
+nodes/fragment/18/position = Vector2(1900, 80)
+nodes/fragment/19/node = SubResource("VisualShaderNodeCustom_hjslt")
+nodes/fragment/19/position = Vector2(980, -480)
+nodes/fragment/20/node = SubResource("VisualShaderNodeColorOp_ljsvb")
+nodes/fragment/20/position = Vector2(2700, 240)
+nodes/fragment/21/node = SubResource("VisualShaderNodeColorConstant_dtxpm")
+nodes/fragment/21/position = Vector2(2440, 360)
+nodes/fragment/30/node = SubResource("VisualShaderNodeCustom_tqhh1")
+nodes/fragment/30/position = Vector2(2160, -120)
+nodes/fragment/31/node = SubResource("VisualShaderNodeSwitch_j36lg")
+nodes/fragment/31/position = Vector2(2420, 200)
+nodes/fragment/32/node = SubResource("VisualShaderNodeExpression_65nuq")
+nodes/fragment/32/position = Vector2(660, -180)
+nodes/fragment/32/size = Vector2(520, 340)
+nodes/fragment/32/input_ports = "0,0,freq;1,0,amp;2,0,offset;"
+nodes/fragment/32/output_ports = "0,3,p0;1,3,p1;"
+nodes/fragment/32/expression = "// make vertecies
+float loc = offset + amp * sin(TAU * freq * TIME);
+
+p0 = vec2(1.0, loc);
+p1 = vec2(loc, 1.0);"
+nodes/fragment/33/node = SubResource("VisualShaderNodeFloatConstant_um377")
+nodes/fragment/33/position = Vector2(360, 0)
+nodes/fragment/34/node = SubResource("VisualShaderNodeFloatConstant_4efjb")
+nodes/fragment/34/position = Vector2(360, -80)
+nodes/fragment/35/node = SubResource("VisualShaderNodeFloatConstant_cyi8y")
+nodes/fragment/35/position = Vector2(360, -160)
+nodes/fragment/connections = PackedInt32Array(16, 0, 17, 0, 16, 0, 18, 0, 19, 0, 16, 0, 21, 0, 20, 1, 30, 0, 31, 0, 18, 1, 31, 1, 31, 0, 20, 0, 20, 0, 0, 0, 18, 0, 30, 0, 33, 0, 32, 2, 34, 0, 32, 1, 35, 0, 32, 0, 32, 0, 16, 1, 32, 1, 16, 3)

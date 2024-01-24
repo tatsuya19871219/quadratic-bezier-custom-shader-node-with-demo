@@ -1,0 +1,169 @@
+[gd_scene load_steps=12 format=3 uid="uid://226n8tmd1nf7"]
+
+[ext_resource type="Shader" uid="uid://btk5kbb7d7rt5" path="res://test/test.tres" id="1_d63wt"]
+[ext_resource type="Script" path="res://test/test_canvas.gd" id="2_56bxs"]
+[ext_resource type="Script" path="res://test/control_point.gd" id="3_5p1e7"]
+[ext_resource type="Script" path="res://test/position_label.gd" id="4_byp2v"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_bo4dr"]
+shader = ExtResource("1_d63wt")
+shader_parameter/InitialPoint = Vector2(0.5, 0.25)
+shader_parameter/ControlPoint = Vector2(0, 0.5)
+shader_parameter/LastPoint = Vector2(0.5, 0.75)
+
+[sub_resource type="Gradient" id="Gradient_ewp5y"]
+offsets = PackedFloat32Array(0, 0.675325, 0.928571, 1)
+colors = PackedColorArray(1, 0, 0, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture2D_8s143"]
+gradient = SubResource("Gradient_ewp5y")
+width = 32
+height = 32
+fill = 1
+fill_from = Vector2(0.5, 0.5)
+fill_to = Vector2(0.75, 0.75)
+metadata/_snap_enabled = true
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_nb184"]
+radius = 12.0
+
+[sub_resource type="LabelSettings" id="LabelSettings_mw75r"]
+font_size = 24
+outline_size = 5
+outline_color = Color(0, 0, 0, 1)
+
+[sub_resource type="LabelSettings" id="LabelSettings_wotdr"]
+font_size = 24
+outline_size = 5
+outline_color = Color(0, 0, 0, 1)
+
+[sub_resource type="LabelSettings" id="LabelSettings_w0vvd"]
+font_size = 24
+outline_size = 5
+outline_color = Color(0, 0, 0, 1)
+
+[node name="test" type="Node2D"]
+
+[node name="BG" type="ColorRect" parent="."]
+offset_right = 1152.0
+offset_bottom = 648.0
+color = Color(0, 0, 0, 1)
+
+[node name="TestCanvas" type="ColorRect" parent="."]
+material = SubResource("ShaderMaterial_bo4dr")
+offset_left = 328.0
+offset_top = 128.0
+offset_right = 828.0
+offset_bottom = 628.0
+mouse_filter = 1
+script = ExtResource("2_56bxs")
+
+[node name="P0" type="StaticBody2D" parent="TestCanvas"]
+input_pickable = true
+script = ExtResource("3_5p1e7")
+metadata/_edit_group_ = true
+
+[node name="Sprite2D" type="Sprite2D" parent="TestCanvas/P0"]
+texture = SubResource("GradientTexture2D_8s143")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="TestCanvas/P0"]
+shape = SubResource("CircleShape2D_nb184")
+
+[node name="Label" type="Label" parent="TestCanvas/P0"]
+offset_left = -16.0
+offset_top = -40.0
+offset_right = 24.0
+offset_bottom = -6.0
+text = "P0"
+label_settings = SubResource("LabelSettings_mw75r")
+
+[node name="P1" type="StaticBody2D" parent="TestCanvas"]
+input_pickable = true
+script = ExtResource("3_5p1e7")
+metadata/_edit_group_ = true
+
+[node name="Sprite2D" type="Sprite2D" parent="TestCanvas/P1"]
+texture = SubResource("GradientTexture2D_8s143")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="TestCanvas/P1"]
+shape = SubResource("CircleShape2D_nb184")
+
+[node name="Label" type="Label" parent="TestCanvas/P1"]
+offset_left = -16.0
+offset_top = -40.0
+offset_right = 24.0
+offset_bottom = -6.0
+text = "P1"
+label_settings = SubResource("LabelSettings_mw75r")
+
+[node name="P2" type="StaticBody2D" parent="TestCanvas"]
+input_pickable = true
+script = ExtResource("3_5p1e7")
+metadata/_edit_group_ = true
+
+[node name="Sprite2D" type="Sprite2D" parent="TestCanvas/P2"]
+texture = SubResource("GradientTexture2D_8s143")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="TestCanvas/P2"]
+shape = SubResource("CircleShape2D_nb184")
+
+[node name="Label" type="Label" parent="TestCanvas/P2"]
+offset_left = -16.0
+offset_top = -40.0
+offset_right = 24.0
+offset_bottom = -6.0
+text = "P2"
+label_settings = SubResource("LabelSettings_mw75r")
+
+[node name="Note" type="Label" parent="."]
+offset_left = 16.0
+offset_top = 16.0
+offset_right = 283.0
+offset_bottom = 87.0
+text = "LEFT CLICK: SELECT
+RIGHT CLICK: DESELECT"
+label_settings = SubResource("LabelSettings_wotdr")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="."]
+offset_left = 896.0
+offset_top = 128.0
+offset_right = 999.0
+offset_bottom = 168.0
+metadata/_edit_group_ = true
+
+[node name="P0_position" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+text = "P0 = (x,y)"
+label_settings = SubResource("LabelSettings_w0vvd")
+script = ExtResource("4_byp2v")
+target_label = "P0"
+target_path = NodePath("../../TestCanvas/P0")
+target_canvas_path = NodePath("../../TestCanvas")
+
+[node name="P1_position" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+text = "P1 = (x,y)"
+label_settings = SubResource("LabelSettings_w0vvd")
+script = ExtResource("4_byp2v")
+target_label = "P1"
+target_path = NodePath("../../TestCanvas/P1")
+target_canvas_path = NodePath("../../TestCanvas")
+
+[node name="P2_position" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+text = "P2 = (x,y)"
+label_settings = SubResource("LabelSettings_w0vvd")
+script = ExtResource("4_byp2v")
+target_label = "P2"
+target_path = NodePath("../../TestCanvas/P2")
+target_canvas_path = NodePath("../../TestCanvas")
+
+[connection signal="deselected" from="TestCanvas/P0" to="TestCanvas" method="_unset_active_point"]
+[connection signal="input_event" from="TestCanvas/P0" to="TestCanvas/P0" method="_on_point_input_event"]
+[connection signal="selected" from="TestCanvas/P0" to="TestCanvas" method="_set_active_point"]
+[connection signal="deselected" from="TestCanvas/P1" to="TestCanvas" method="_unset_active_point"]
+[connection signal="input_event" from="TestCanvas/P1" to="TestCanvas/P1" method="_on_point_input_event"]
+[connection signal="selected" from="TestCanvas/P1" to="TestCanvas" method="_set_active_point"]
+[connection signal="deselected" from="TestCanvas/P2" to="TestCanvas" method="_unset_active_point"]
+[connection signal="input_event" from="TestCanvas/P2" to="TestCanvas/P2" method="_on_point_input_event"]
+[connection signal="selected" from="TestCanvas/P2" to="TestCanvas" method="_set_active_point"]

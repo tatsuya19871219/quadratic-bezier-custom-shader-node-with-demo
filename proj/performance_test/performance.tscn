@@ -1,0 +1,29 @@
+[gd_scene load_steps=5 format=3 uid="uid://dvl1apxkc8ptn"]
+
+[ext_resource type="Script" path="res://performance_test/fps_label.gd" id="1_8c1xu"]
+[ext_resource type="Shader" path="res://performance_test/shader/leafs_bg.gdshader" id="1_d36wn"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_4ci41"]
+shader = ExtResource("1_d36wn")
+shader_parameter/canvas_size = Vector2(1152, 648)
+shader_parameter/leafs_max = 256
+shader_parameter/leaf_size = 64.0
+
+[sub_resource type="LabelSettings" id="LabelSettings_6jccm"]
+font_size = 32
+font_color = Color(0, 0, 0, 0.498039)
+
+[node name="Performance" type="Node2D"]
+
+[node name="LeafCanvas" type="ColorRect" parent="."]
+material = SubResource("ShaderMaterial_4ci41")
+offset_right = 1152.0
+offset_bottom = 648.0
+color = Color(1, 1, 0.678431, 1)
+
+[node name="FPSLabel" type="Label" parent="."]
+offset_right = 40.0
+offset_bottom = 23.0
+text = "FPS: 0"
+label_settings = SubResource("LabelSettings_6jccm")
+script = ExtResource("1_8c1xu")

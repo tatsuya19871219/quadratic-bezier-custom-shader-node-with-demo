@@ -1,0 +1,19 @@
+[gd_scene load_steps=3 format=3 uid="uid://1ilbca7s7ce6"]
+
+[ext_resource type="Shader" path="res://performance_test/shader/leaf.gdshader" id="1_asxu1"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_r5re8"]
+shader = ExtResource("1_asxu1")
+
+[node name="LeafTest" type="Node2D"]
+
+[node name="BG" type="ColorRect" parent="."]
+offset_right = 1152.0
+offset_bottom = 648.0
+
+[node name="Leaf" type="ColorRect" parent="."]
+material = SubResource("ShaderMaterial_r5re8")
+offset_left = 312.0
+offset_top = 72.0
+offset_right = 824.0
+offset_bottom = 584.0

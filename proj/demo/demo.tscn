@@ -1,0 +1,68 @@
+[gd_scene load_steps=11 format=3 uid="uid://cf5qx7g0xfid3"]
+
+[ext_resource type="Shader" uid="uid://esafbf7ppr3n" path="res://demo/demo_heart.tres" id="1_hyooq"]
+[ext_resource type="Shader" uid="uid://dpw63wvt6n2k7" path="res://demo/demo_stardust.tres" id="2_42hma"]
+[ext_resource type="Shader" uid="uid://iov8ivcjxyl1" path="res://demo/demo_wave.tres" id="3_7timn"]
+[ext_resource type="Shader" uid="uid://dtqtknwd2sl3j" path="res://demo/demo_spiral.tres" id="4_pg7x5"]
+[ext_resource type="Shader" uid="uid://bohax5ipyg4pw" path="res://demo/demo_motion.tres" id="5_shuso"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_nijhk"]
+shader = ExtResource("1_hyooq")
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_25aow"]
+shader = ExtResource("2_42hma")
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_o68nd"]
+shader = ExtResource("3_7timn")
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_ai4tg"]
+shader = ExtResource("4_pg7x5")
+shader_parameter/DeltaRotation = 0.262
+shader_parameter/DeltaScale = 0.75
+shader_parameter/Depth = 10
+shader_parameter/InitWidth = 0.05
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_oqwme"]
+shader = ExtResource("5_shuso")
+
+[node name="Demo" type="Node2D"]
+
+[node name="BG" type="ColorRect" parent="."]
+offset_right = 1152.0
+offset_bottom = 648.0
+color = Color(0.607843, 0.607843, 1, 1)
+
+[node name="DemoHeart" type="ColorRect" parent="."]
+material = SubResource("ShaderMaterial_nijhk")
+offset_left = 64.0
+offset_top = 64.0
+offset_right = 576.0
+offset_bottom = 576.0
+
+[node name="DemoStardust" type="ColorRect" parent="."]
+material = SubResource("ShaderMaterial_25aow")
+offset_left = 576.0
+offset_top = 64.0
+offset_right = 832.0
+offset_bottom = 320.0
+
+[node name="DemoWave" type="ColorRect" parent="."]
+material = SubResource("ShaderMaterial_o68nd")
+offset_left = 576.0
+offset_top = 320.0
+offset_right = 832.0
+offset_bottom = 576.0
+
+[node name="DemoSpiral" type="ColorRect" parent="."]
+material = SubResource("ShaderMaterial_ai4tg")
+offset_left = 832.0
+offset_top = 320.0
+offset_right = 1088.0
+offset_bottom = 576.0
+
+[node name="DemoMotion" type="ColorRect" parent="."]
+material = SubResource("ShaderMaterial_oqwme")
+offset_left = 832.0
+offset_top = 64.0
+offset_right = 1088.0
+offset_bottom = 320.0
