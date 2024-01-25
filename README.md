@@ -1,8 +1,8 @@
 # Quadratic Bézier Custom Shader Node with Demo Project for Godot
 
-This project provides the custom shader node which enables for drawing quadratic Bézier curves. 
+This project provides the custom shader node which enables CanvasItem (2D) shader to draw quadratic Bézier curves. 
 
-Also available on [GodotXC](https://godotxc.com).
+The custom shader node is also available on [GodotXC](https://godotxc.com).
 
 Please refer to [note](./note/qbezier_shader_note.md) for the mathematical details.
 
