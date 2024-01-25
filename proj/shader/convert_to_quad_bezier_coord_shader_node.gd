@@ -2,7 +2,7 @@
 class_name ConvertToQuadBezierCoordShaderNode
 extends VisualShaderNodeCustom
 
-const quad_bezier_solver_shaderinc: ShaderInclude = preload("res://shader/quad_bezier_solver.gdshaderinc")
+const quad_bezier_solver_shaderinc: ShaderInclude = preload("./quad_bezier_solver.gdshaderinc")
 
 
 func _get_name():
