@@ -67,41 +67,57 @@ render_mode blend_mix;
 
 
 // ConvertToQuadBezierCoord
-///////////////////////////////////
-// Quadratic Bezier Curve Solver //
-///////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////
+// Shader include file for Quadratic Bezier Curve Coordinate Converter				//
+//																					//
+// MIT License																		//
+//																					//
+// Copyright (c) 2024 Tatsuya Yamada												//
+//																					//
+// Permission is hereby granted, free of charge, to any person obtaining a copy		//
+// of this software and associated documentation files (the \"Software\"), to deal	//
+// in the Software without restriction, including without limitation the rights		//
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell		//
+// copies of the Software, and to permit persons to whom the Software is			//
+// furnished to do so, subject to the following conditions:							//
+//																					//
+// The above copyright notice and this permission notice shall be included in all	//
+// copies or substantial portions of the Software.									//
+//																					//
+// THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR		//
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,			//
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE		//
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER			//
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,	//
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE	//
+// SOFTWARE.																		//
+//////////////////////////////////////////////////////////////////////////////////////
 
 // Ref: https://docs.godotengine.org/en/stable/tutorials/shaders/shader_reference/shading_language.html#flow-control
 const float QBEZIER_SOLVER_EPSILON = 0.0001;
-
 
 vec2 qbezier_curve(float t, vec2 p0, vec2 p1, vec2 p2) {
 	return p1 + (1.0-t)*(1.0-t)*(p0 - p1) + t*t*(p2-p1);
 }
 
-
 vec2 qbezier_curve_tangent(float t, vec2 p0, vec2 p1, vec2 p2) {
 	return -2.0*(1.0-t)*(p0 - p1) + 2.0*t*(p2 - p1); 
 }
-
 
 vec2 qbezier_curve_unit_tangent(float t, vec2 p0, vec2 p1, vec2 p2) {
 	vec2 q = qbezier_curve_tangent(t, p0, p1, p2);
 	return q / length(q);
 }
 
-
 vec2 qbezier_curve_unit_normal(float t, vec2 p0, vec2 p1, vec2 p2) {
 	vec2 q = qbezier_curve_unit_tangent(t, p0, p1, p2);
 	return vec2(q.y, -q.x);
 }
 
-
 float qbezier_calc_displacement(vec2 uv, float t, vec2 p0, vec2 p1, vec2 p2) {
 	return dot(uv - qbezier_curve(t, p0, p1, p2), 
 				qbezier_curve_unit_normal(t, p0, p1, p2));
 }
-
 
 float qbezier_calc_curve_length_integral(float t, float A, float B, float C) {
 	float K = 2.0*A*t + B;
@@ -113,7 +129,6 @@ float qbezier_calc_curve_length_integral(float t, float A, float B, float C) {
 	
 	return I - J;
 }
-
 
 float qbezier_calc_curve_length(float t, vec2 p0, vec2 p1, vec2 p2) {
 	
@@ -131,7 +146,7 @@ float qbezier_calc_curve_length(float t, vec2 p0, vec2 p1, vec2 p2) {
 			// \\int_0^t C dt
 			return sqrt(C) * t;
 		}
-
+		
 		// \\int_0^t {Bt + C} dt
 		float It = 2.0 * pow(sqrt(B*t + C), 3.0) / (3.0 * B);
 		float I0 = 2.0 * pow(sqrt(C), 3.0) / (3.0 * B);
@@ -144,12 +159,11 @@ float qbezier_calc_curve_length(float t, vec2 p0, vec2 p1, vec2 p2) {
 			- qbezier_calc_curve_length_integral(0.0, A, B, C);
 }
 
-
 float qbezier_calc_curt(float x) { // cubic root
 	return pow(x, 1.0/3.0);
 }
 
-
+// Returns possible coordinates in ascending order (t_arr[0] < t_arr[1] < t_arr[2])
 void qbezier_get_possible_location_parameters(vec2 uv, vec2 p0, vec2 p1, vec2 p2, out float disc, out float[3] t_arr, out int real_solutions) {
 
 	float a = pow(length(p2-p1), 2.0);
@@ -238,8 +252,6 @@ void qbezier_get_possible_location_parameters(vec2 uv, vec2 p0, vec2 p1, vec2 p2
 			t_arr[0] = qbezier_calc_curt(-q) - Ba/3.0;
 		}
 		
-		//t_arr[0] = 0.0;
-		
 		real_solutions = 1;
 		return;
 	}
@@ -265,8 +277,6 @@ void qbezier_get_possible_location_parameters(vec2 uv, vec2 p0, vec2 p1, vec2 p2
 			float x = -2.0 * abs(q)/q*sqrt(-p/3.0) * cosh(th);
 			t_arr[0] = x - Ba/3.0;
 		}
-		
-		//t_arr[0] = 0.0;
 		
 		real_solutions = 1;
 		return;
@@ -333,7 +343,6 @@ void qbezier_get_possible_location_parameters(vec2 uv, vec2 p0, vec2 p1, vec2 p2
 	}
 }
 
-
 vec2 qbezier_get_coord(vec2 uv, vec2 p_init, vec2 p_control, vec2 p_last, 
 						out vec2 raw_coord0, out vec2 raw_coord1, out vec2 raw_coord2,
 						out int real_solutions) {
@@ -370,7 +379,6 @@ vec2 qbezier_get_coord(vec2 uv, vec2 p_init, vec2 p_control, vec2 p_last,
 	return vec2(location, displacement);
 }
 
-
 vec2 qbezier_get_principal_coord(vec2 uv, vec2 p_init, vec2 p_control, vec2 p_last) {
 	
 	vec2 raw_coord0;
@@ -379,7 +387,7 @@ vec2 qbezier_get_principal_coord(vec2 uv, vec2 p_init, vec2 p_control, vec2 p_la
 	int real_solutions;
 	
 	return qbezier_get_coord(uv, p_init, p_control, p_last, 
-						raw_coord0, raw_coord1, raw_coord2, real_solutions);
+							raw_coord0, raw_coord1, raw_coord2, real_solutions);
 	
 }
 
